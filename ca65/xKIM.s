@@ -518,11 +518,18 @@ commandTable:	.byte	'?'
                 .word	bDesc
         .endif
 ;
+        .ifdef IEC_SUPPORT
+                .byte	'C'	;Send a command to the drive
+                .word	sendCommand
+                .word	cDesc
+        .else
         .if	SHOW_RTC
                 .byte	'C'
                 .word	doShowClock
                 .word	cDesc
         .endif
+        .endif
+;
                 .byte	'D'
                 .word	doDiskDir
                 .word	dDesc
@@ -600,8 +607,12 @@ quesDesc:	.byte	"? ........... Show this help",0
         .if	TINY_BASIC
 bDesc:		.byte	"B ........... Bob's Tiny BASIC",0
         .endif
+        .ifdef  IEC_SUPPORT
+cDesc:		.byte	"C ........... Send a command to the drive",0
+        .else
         .if	SHOW_RTC
 cDesc:		.byte	"C ........... Show clock",0
+        .endif
         .endif
 dDesc:		.byte	"D ........... Disk directory",0
 eDesc:		.byte	"E xxxx ...... Edit memory",0
@@ -1585,6 +1596,29 @@ relgood:	pha			;save offset
         .ifdef  IEC_SUPPORT
         
 ;=====================================================
+; This sends a command to the drive
+;
+sendCommand:    jsr     SEINIT
+                lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
+                sta     MSGFLG
+
+                jsr	putsil
+                .byte	CR,LF
+                .byte	"Enter command string, or Enter to "
+                .byte	"cancel: ",0
+
+                jsr	getCmdString	;get command string
+                lda	buffer	        ;null?
+                beq     readCancel
+
+                txa                     ; X holds command length
+                ldx     #<buffer
+                ldy     #>buffer
+
+                jsr     DSKCMD
+                rts
+
+;=====================================================
 ; This handles the Read PRG file command.
 ;
 readFile:       jsr     SEINIT
@@ -1890,6 +1924,32 @@ getFnDone:       lda	#0	;terminate line
                 sta	filename,x
                 jsr	CRLF
                 rts
+;
+        .ifdef  IEC_SUPPORT
+;=====================================================
+; Get a command string and place into the buffer.
+;
+getCmdString:	ldx	#0
+getCmdString1:	jsr	GETCH	;get next key
+                cmp	#CR	;end of the input?
+                beq	getCsDone
+                cmp	#BS	;backspace?
+                beq	getCsDel
+                cpx	#BUFFER_SIZE	;check size
+                beq	getCmdString1	;at length limit
+                sta	buffer,x	;else save it
+                inx
+                bne	getCmdString1
+;
+getCsDel:	dex		;back up one
+                bpl	getCmdString1
+                inx		;can't go past start
+                beq	getCmdString1
+getCsDone:       lda	#0	;terminate line
+                sta	buffer,x
+                jsr	CRLF
+                rts
+        .endif
 ;
 ;=====================================================
 ; This gets the next byte from an open disk file.  If
