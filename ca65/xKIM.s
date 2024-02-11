@@ -1610,7 +1610,7 @@ sendCommand:    jsr     SEINIT
                 jsr	putsil
                 .byte	CR,LF
                 .byte	"Enter command string, or Enter to "
-                .byte	"cancel: ",0
+                .byte	"cancel: ", CR, LF, 0
 
                 jsr	getCmdString	;get command string
                 lda	buffer	        ;null?
