@@ -586,6 +586,10 @@ commandTable:	.byte	'?'
                 .word	verifyFile
                 .word	vDesc
 ;
+                .byte	'W'	;write memory to a PRG file
+                .word	writeFile
+                .word	wDesc
+;
         .endif
                 .byte	'X'	;return to KIM monitor
                 .word	returnKim
@@ -632,6 +636,7 @@ sDesc:		.byte	"S xxxx xxxx . Save memory to file",0
 tDesc:		.byte	"T ........... Type disk file",0
         .else
 vDesc:		.byte	"V ........... Verify PRG file on disk",0
+wDesc:		.byte	"W xxxx xxxx . Write memory to PRG file",0
         .endif
 bangDesc:	.byte	"! ........... Do a cold start",0
 ;
@@ -1616,7 +1621,7 @@ sendCommand:    jsr     SEINIT
                 ldy     #>buffer
 
                 jsr     DSKCMD
-                rts
+                jmp     extKimLoop
 
 ;=====================================================
 ; This handles the Read PRG file command.
@@ -1649,13 +1654,46 @@ doReadFile:	sta     VERCK
                 ldy     #>filename
 
                 jsr     FREAD
-                rts
+                jmp     extKimLoop
 
 readCancel:     jsr     putsil
                 .byte   "Cancelled by user.", CR, LF, 0
-                rts
-        .endif
+                jmp     extKimLoop
 
+;=====================================================
+; Handles the command to write a region of memory as a
+; PRG file on the disk.
+;
+writeFile:	jsr     SEINIT
+
+                jsr	getAddrRange	;get range to dump
+                bcc     writeFile1
+
+writeFile1:     lda     SAL
+                sta     DSAL
+                lda     SAH
+                sta     DSAH
+                lda     EAL
+                sta     DEAL
+                lda     EAH
+                sta     DEAH
+
+                jsr	putsil
+                .byte	CR,LF
+                .byte	"Enter filename, or Enter to "
+                .byte	"cancel: ",0
+
+                jsr	getFileName	;get filename
+                lda	filename	;null?
+                beq     readCancel
+
+                txa                     ; X holds file length
+                ldx	#>filename
+                ldy	#<filename
+
+                jsr     FWRITE
+                jmp     extKimLoop
+        .endif
 ;
 ;=====================================================
 ; This subroutine will search for a command in a table
