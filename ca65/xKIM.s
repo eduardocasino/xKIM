@@ -129,7 +129,11 @@ EOF_RECORD	=	$01
 ;
 ; These are various buffer sizes
 ;
+        .ifdef  IEC_SUPPORT
+FILENAME_SIZE	=	16
+        .else
 FILENAME_SIZE	=	12
+        .endif
 BUFFER_SIZE	=	64
 ;
 ; Max number of bytes per line for hex dump
@@ -555,6 +559,10 @@ commandTable:	.byte	'?'
                 .byte	'P'	;ping remote disk
                 .word	pingDisk
                 .word	pDesc
+        .else
+                .byte   'R'     ;read PRG file from disk
+                .word   readFile
+                .word   rDesc
         .endif
 ;
                 .byte	'S'	;save memory as hex file
@@ -600,6 +608,8 @@ mDesc:		.byte	"M xxxx xxxx . Memory test",0
 oDesc:		.byte	"O xxxx xxxx . Calculate branch offset",0
         .ifndef IEC_SUPPORT
 pDesc:		.byte	"P ........... Ping disk controller",0
+        .else
+rDesc:		.byte	"R ........... Read PRG file from disk",0
         .endif
 sDesc:		.byte	"S xxxx xxxx . Save memory to file",0
         .ifndef IEC_SUPPORT
@@ -1565,6 +1575,36 @@ relgood:	pha			;save offset
 ;
 ; Add new commands here...
 ;
+;=====================================================
+; This handles the Read PRG file command.
+;
+        .ifdef  IEC_SUPPORT
+readFile:	jsr     SEINIT          ; Init serial interface
+                lda     #0
+                sta     VERCK           ; Not verifying
+                lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
+                sta     MSGFLG
+                
+                jsr	putsil
+                .byte	CR,LF
+                .byte	"Enter filename, or Enter to "
+                .byte	"cancel: ",0
+;
+                jsr	getFileName	;get filename
+                lda	filename	;null?
+                beq     readCancel
+
+                txa                     ; X holds file length
+                ldx     #<filename
+                ldy     #>filename
+
+                jsr     FREAD
+                rts
+
+readCancel:     jsr     putsil
+                .byte   "Cancelled by user.", CR, LF, 0
+                rts
+        .endif
 
 ;
 ;=====================================================
@@ -2013,11 +2053,9 @@ pNFB:		sta	buffer,x
                 stx	diskBufOffset
                 rts
 ;
-        .ifndef  IEC_SUPPORT
                 .include	"pario.s"
                 .include	"parproto.inc"
                 .include	"diskfunc.s"
-        .endif
 ;
 ;=====================================================
 ; Show current clock
