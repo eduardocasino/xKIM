@@ -1960,7 +1960,13 @@ getFnDel:	dex		;back up one
                 beq	getFilename1
 getFnDone:       lda	#0	;terminate line
                 sta	filename,x
+        .ifdef  IEC_SUPPORT
+                stx     saveX
+        .endif
                 jsr	CRLF
+        .ifdef  IEC_SUPPORT
+                ldx     saveX
+        .endif
                 rts
 ;
         .ifdef  IEC_SUPPORT
@@ -1985,7 +1991,9 @@ getCsDel:	dex		;back up one
                 beq	getCmdString1
 getCsDone:       lda	#0	;terminate line
                 sta	buffer,x
+                stx     saveX
                 jsr	CRLF
+                ldx     saveX
                 rts
         .endif
 ;
