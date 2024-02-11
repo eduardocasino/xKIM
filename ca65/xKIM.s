@@ -573,8 +573,13 @@ commandTable:	.byte	'?'
                 .byte	'T'	;type a file on SD
                 .word	typeFile
                 .word	tDesc
-        .endif
 ;
+        .else
+                .byte	'V'	;verify PRG file
+                .word	verifyFile
+                .word	vDesc
+;
+        .endif
                 .byte	'X'	;return to KIM monitor
                 .word	returnKim
                 .word	kDesc
@@ -614,6 +619,8 @@ rDesc:		.byte	"R ........... Read PRG file from disk",0
 sDesc:		.byte	"S xxxx xxxx . Save memory to file",0
         .ifndef IEC_SUPPORT
 tDesc:		.byte	"T ........... Type disk file",0
+        .else
+vDesc:		.byte	"V ........... Verify PRG file on disk",0
         .endif
 bangDesc:	.byte	"! ........... Do a cold start",0
 ;
@@ -1575,13 +1582,22 @@ relgood:	pha			;save offset
 ;
 ; Add new commands here...
 ;
+        .ifdef  IEC_SUPPORT
+        
 ;=====================================================
 ; This handles the Read PRG file command.
 ;
-        .ifdef  IEC_SUPPORT
-readFile:	jsr     SEINIT          ; Init serial interface
-                lda     #0
-                sta     VERCK           ; Not verifying
+readFile:       jsr     SEINIT
+                lda     #0              ; Not verifying
+                jmp     doReadFile
+
+;=====================================================
+; This handles the Verify PRG file command.
+;
+verifyFile:     jsr     SEINIT
+                lda     #1              ; Verifying
+
+doReadFile:	sta     VERCK
                 lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
                 sta     MSGFLG
                 
