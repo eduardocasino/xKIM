@@ -1,8 +1,21 @@
 # CA65 port of Bob Applegate's xKIM
 
+THIS BRANCH REPLACES SD SHIELD FUNCTIONS WITH EXPERIMENTAL IEC DISK DRIVE SUPPORT IN THE CA65 VERSION.
+
+IT IS WORK IN PROGRESS, STILL UNSTABLE AND NOT WORKING 100%. USE AT YOUR OWN RISK!!!!
+
+THE IEC FUNCTIONS ARE IN https://github.com/eduardocasino/xkim1541 
+
+COMPILE WITH "make IEC_SUPPORT=1"
+
+---
+---
 Ported files under the "ca65" folder, original sources under the "orig" folder.
 
 Changelog:
+11/02/2024
+
+* Initial IEC Disk Drive support.
 
 30/01/2024
 

@@ -107,7 +107,11 @@ TINY_BASIC	=	false
 ; Set this to true to include a command to get/display
 ; the current time from Corsham Tech SD card.
 ;
+        .ifdef  IEC_SUPPORT
+SHOW_RTC	=	false
+        .else
 SHOW_RTC	=	true
+        .endif
 ;
 ; Non-printable ASCII constants
 ;
@@ -206,6 +210,10 @@ OUTCH		=	$1ea0	;print A to TTY
 SHOW		=	$1dac
 SHOW1		=	$1daf
 INCPT		=	$1f63	;inc POINTL/POINTH
+;
+        .ifdef  IEC_SUPPORT
+                .include        "iecproto.inc"
+        .endif
 ;
 ;=====================================================
 ; I assume the RAM goes from 2000 to DFFF, so carve out
@@ -317,13 +325,19 @@ reentry:	jmp	extKim          ;extended monitor
                 jmp	doHexDump	;perform a hex dump
                 jmp	doEdit		;edit memory
                 jmp	loadHexConsole	;load hex file via console
+        .ifdef IEC_SUPPORT
+                .byte   $60, 0, 0       ;STUB - load hex file from SD     
+                .byte   $60, 0, 0       ;STUB - do a disk directory     
+        .else
                 jmp	loadHexFile	;load hex file from SD
                 jmp	doSDDiskDir	;do a disk directory
+        .endif
                 jmp	ComputeOffset	;compute relative offset
 ;
 ; SD card functions
 ;
                 VERIFY	BASE+$0033
+        .ifndef IEC_SUPPORT
                 jmp	xParInit	;initialization
                 jmp	xParSetWrite
                 jmp	xParSetRead
@@ -337,6 +351,7 @@ reentry:	jmp	extKim          ;extended monitor
                 jmp	DiskClose
                 jmp	DiskOpenWrite
                 jmp	DiskWrite
+        .endif
 ;
 ; Even more vectors as I ran out of the reserve area!
 ;
@@ -367,8 +382,10 @@ extKim:		ldx	#$ff
                 bit	SAD
                 bne	notty	;branch .if in keyboard mode
 
+        .ifndef IEC_SUPPORT
         .if	~SD_ONLY_COLD
                 jsr	xParInit
+        .endif
         .endif
 ;
 ; Determine .if this is a cold or warm start
@@ -425,6 +442,12 @@ coldStart:	lda	#COLD_FLAG_1	;indicate we've done cold
                 .byte	CR,LF
                 .byte	"www.corshamtech.com"
                 .byte	CR,LF
+        .ifdef  IEC_SUPPORT
+                .byte   "Experimental IEC Disk Drive support by Eduardo Casino"
+                .byte	CR,LF
+                .byte	"github.com/eduardocasino"
+                .byte	CR,LF
+        .endif
         .if	RAM_BASED
                 .byte	CR,LF
                 .byte	"*** RAM BASED VERSION ***"
@@ -528,17 +551,21 @@ commandTable:	.byte	'?'
                 .word	offCalc
                 .word	oDesc
 ;
+        .ifndef IEC_SUPPORT
                 .byte	'P'	;ping remote disk
                 .word	pingDisk
                 .word	pDesc
+        .endif
 ;
                 .byte	'S'	;save memory as hex file
                 .word	saveHex
                 .word	sDesc
 ;
+        .ifndef IEC_SUPPORT
                 .byte	'T'	;type a file on SD
                 .word	typeFile
                 .word	tDesc
+        .endif
 ;
                 .byte	'X'	;return to KIM monitor
                 .word	returnKim
@@ -571,9 +598,13 @@ kDesc:		.byte	"K ........... Go to KIM monitor",0
 lDesc:		.byte	"L ........... Load HEX file",0
 mDesc:		.byte	"M xxxx xxxx . Memory test",0
 oDesc:		.byte	"O xxxx xxxx . Calculate branch offset",0
+        .ifndef IEC_SUPPORT
 pDesc:		.byte	"P ........... Ping disk controller",0
+        .endif
 sDesc:		.byte	"S xxxx xxxx . Save memory to file",0
+        .ifndef IEC_SUPPORT
 tDesc:		.byte	"T ........... Type disk file",0
+        .endif
 bangDesc:	.byte	"! ........... Do a cold start",0
 ;
 ;=====================================================
@@ -991,7 +1022,9 @@ editMem6:	pha
 ;=====================================================
 ; This handles the Load hex command.
 ;
-loadHex:	jsr	putsil
+loadHex:	
+        .ifndef IEC_SUPPORT
+                jsr	putsil
                 .byte	CR,LF
                 .byte	"Enter filename, or Enter to "
                 .byte	"load from console: ",0
@@ -999,16 +1032,19 @@ loadHex:	jsr	putsil
                 jsr	getFileName	;get filename
                 lda	filename	;null?
                 bne	loaddiskfile
+        .endif
                 jsr	loadHexConsole	;load from console
                 jmp	loadCheckAuto	;check auto-run
 ;
 ; Open the file
 ;
+        .ifndef IEC_SUPPORT
 loaddiskfile:	ldy	#<filename
                 ldx	#>filename
                 lda	#$ff
                 sta	ID		;print dots
                 jsr	loadHexFile
+        .endif
 ;
 ; .if the auto-run vector is no longer $ffff, then jump
 ; to whatever it points to.
@@ -1024,6 +1060,7 @@ lExit11:	jmp	extKimLoop
 ; entry the pointer to the filename is in X (MSB) and
 ; Y (LSB).
 ;
+        .ifndef IEC_SUPPORT
 loadHexFile:	lda	#$ff
                 sta	AutoRun+1
                 sta	ID		;we want dots
@@ -1038,6 +1075,7 @@ openfail:	jsr	putsil
 ;
 loadHexOk:	jsr	setInputFile	;redirect input
                 jmp	loadStart
+        .endif
 ;
 ;=====================================================
 ; This subroutine is called to load a hex file from
@@ -1203,6 +1241,7 @@ saveHex:	jsr	getAddrRange	;get range to dump
 ;
 ; Get the filename to save to
 ;
+        .ifndef IEC_SUPPORT
                 jsr	putsil
                 .byte	CR,LF
                 .byte	"Enter filename, or Enter to "
@@ -1222,6 +1261,7 @@ saveHex:	jsr	getAddrRange	;get range to dump
 ;
 sopenok:	jsr	setOutputFile
                 jmp	savehex2
+        .endif
 ;
 ; They are saving to the console.  Set up the output
 ; vector and do the job.
@@ -1280,9 +1320,11 @@ Sloop1:		lda	Temp16H
 ;
 ; .if output to file, flush and close the file.
 ;
+        .ifndef IEC_SUPPORT
                 lda	filename
                 beq	SDone		;it's going to console
                 jsr	CloseOutFile
+        .endif
 SDone:		jmp	extKimLoop	;back to the monitor
 ;
 ; This dumps the next line.  See how many bytes are left to do
@@ -1388,6 +1430,7 @@ cmdRet:		jmp	extKimLoop
 ; Not much of a test but is sufficient to prove the
 ; link is working.
 ;
+        .ifndef IEC_SUPPORT
 pingDisk:
 ;		jsr	xParInit	;init interface
                 jsr	putsil
@@ -1397,6 +1440,7 @@ pingDisk:
                 .byte	"success!"
                 .byte	CR,LF,0
                 jmp	extKimLoop
+        .endif
 ;
 ;=====================================================
 ; Do a disk directory of the SD card.
@@ -1404,14 +1448,30 @@ pingDisk:
 doDiskDir:	jsr	putsil
                 .byte	"isk Directory..."
                 .byte	CR,LF,0
+        .ifdef IEC_SUPPORT
+                jsr     doIECDiskDir
+        .else
                 jsr	doSDDiskDir
+        .endif
                 jmp	extKimLoop
 doDiskDirEnd:	rts
+;
+;=====================================================
+; Subroutine to do an IEC disk directory.  Prints contents
+; to the console.
+;
+        .ifdef   IEC_SUPPORT
+doIECDiskDir:
+                jsr     SEINIT
+                jsr     DIRLIST
+                rts
+        .endif
 ;
 ;=====================================================
 ; Subroutine to do a disk directory.  Prints filenames
 ; to the console.
 ;
+        .ifndef IEC_SUPPORT
 doSDDiskDir:	jsr	xParInit
                 jsr	DiskDir
 ;
@@ -1456,6 +1516,7 @@ typeFileLoop:	jsr	getNextFileByte
 ;
 typeEof:	jsr	DiskClose
                 jmp	extKimLoop
+        .endif
 ;
 ;=====================================================
 ; Calculate the offset for a relative branch.  6502
@@ -1779,6 +1840,7 @@ getFnDone:       lda	#0	;terminate line
 ; there are no more bytes left, this returns C set.
 ; Else, C is clear and A contains the character.
 ;
+        .ifndef IEC_SUPPORT
 getNextFileByte:
                 ldx 	diskBufOffset
                 cpx	diskBufLength
@@ -1811,7 +1873,7 @@ getNextEof:	lda	#0
                 sta	diskBufLength
                 sec
                 rts
-
+        .endif
 ;
 ;=====================================================
 ; This is a helper function used for redirected I/O.
@@ -1836,6 +1898,7 @@ setInputConsole:
 ; Set up the input vector to point to a file read
 ; subroutine.
 ;
+        .ifndef IEC_SUPPORT
 setInputFile:   lda	#<getNextFileByte
                 sta     inputVector
                 lda	#>getNextFileByte
@@ -1848,6 +1911,7 @@ setInputFile:   lda	#<getNextFileByte
                 sta	diskBufOffset
                 sta	diskBufLength
                 rts
+        .endif
 ;
 ;=====================================================
 ; Print character in A as two hex digits to the
@@ -1885,6 +1949,7 @@ redirectedOutch:
 ; This flushes any data remaining in the disk buffer
 ; and then closes the file.
 ;
+        .ifndef IEC_SUPPORT
 CloseOutFile:	lda	diskBufOffset
                 beq	closeonly
                 ldx	#>buffer
@@ -1892,6 +1957,7 @@ CloseOutFile:	lda	diskBufOffset
                 jsr	DiskWrite
 ;
 closeonly:	jsr	DiskClose
+        .endif
 ;
 ; Fall through...
 ;
@@ -1910,6 +1976,7 @@ setOutputConsole:
 ; Set up the output vector to point to a file write
 ; subroutine.
 ;
+        .ifndef IEC_SUPPORT
 setOutputFile:	lda	#<putNextFileByte
                 sta     outputVector
                 lda	#>putNextFileByte
@@ -1946,9 +2013,11 @@ pNFB:		sta	buffer,x
                 stx	diskBufOffset
                 rts
 ;
+        .ifndef  IEC_SUPPORT
                 .include	"pario.s"
                 .include	"parproto.inc"
                 .include	"diskfunc.s"
+        .endif
 ;
 ;=====================================================
 ; Show current clock
@@ -2018,6 +2087,7 @@ clockread:	stx	saveX
                 jsr	putsil
                 .byte	CR,LF,0
                 jmp	extKim	;return to monitor
+        .endif
 ;
 ;========================================================
 ; Given a binary value in A, display it as two decimal
