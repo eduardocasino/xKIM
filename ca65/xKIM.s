@@ -1605,7 +1605,7 @@ relgood:	pha			;save offset
 ;
 sendCommand:    jsr     SEINIT
                 lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
-                sta     MSGFLG
+                jsr     SETMSGF
 
                 jsr	putsil
                 .byte	CR,LF
@@ -1636,9 +1636,9 @@ readFile:       jsr     SEINIT
 verifyFile:     jsr     SEINIT
                 lda     #1              ; Verifying
 
-doReadFile:	sta     VERCK
+doReadFile:	jsr     SETVRCK
                 lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
-                sta     MSGFLG
+                jsr     SETMSGF
                 
                 jsr	putsil
                 .byte	CR,LF
@@ -1670,13 +1670,11 @@ writeFile:	jsr     SEINIT
                 bcc     writeFile1
 
 writeFile1:     lda     SAL
-                sta     DSAL
-                lda     SAH
-                sta     DSAH
+                ldy     SAH
+                jsr     SETSAD
                 lda     EAL
-                sta     DEAL
-                lda     EAH
-                sta     DEAH
+                ldy     EAH
+                jsr     SETEAD
 
                 jsr	putsil
                 .byte	CR,LF
