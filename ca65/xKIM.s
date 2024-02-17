@@ -1668,9 +1668,10 @@ readCancel:     jsr     putsil
 ;
 writeFile:	jsr     SEINIT
                 lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
-
+                jsr     SETMSGF
+                
                 jsr	getAddrRange	;get range to dump
-                bcc     writeFile1
+                bcs     writeFile2      ;abort on error
 
 writeFile1:     lda     SAL
                 ldy     SAH
@@ -1693,7 +1694,7 @@ writeFile1:     lda     SAL
                 ldy	#>filename
 
                 jsr     FWRITE
-                jmp     extKimLoop
+writeFile2:     jmp     extKimLoop
         .endif
 ;
 ;=====================================================
