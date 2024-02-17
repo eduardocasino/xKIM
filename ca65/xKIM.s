@@ -1689,8 +1689,8 @@ writeFile1:     lda     SAL
                 beq     readCancel
 
                 txa                     ; X holds file length
-                ldx	#>filename
-                ldy	#<filename
+                ldx	#<filename
+                ldy	#>filename
 
                 jsr     FWRITE
                 jmp     extKimLoop
