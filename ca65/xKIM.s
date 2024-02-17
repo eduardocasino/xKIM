@@ -1496,6 +1496,8 @@ doDiskDirEnd:	rts
         .ifdef   IEC_SUPPORT
 doIECDiskDir:
                 jsr     SEINIT
+                lda     #FPRNERR        ; Print IEC errors
+                jsr     SETMSGF
                 jsr     DIRLIST
                 rts
         .endif
@@ -1665,6 +1667,7 @@ readCancel:     jsr     putsil
 ; PRG file on the disk.
 ;
 writeFile:	jsr     SEINIT
+                lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
 
                 jsr	getAddrRange	;get range to dump
                 bcc     writeFile1
