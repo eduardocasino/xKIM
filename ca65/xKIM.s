@@ -1641,6 +1641,8 @@ verifyFile:     jsr     SEINIT
 doReadFile:	jsr     SETVRCK
                 lda     #FPRNMSG|FPRNERR ; Print IEC messages and errors
                 jsr     SETMSGF
+                lda     #1              ; Load starting from addr
+                jsr     SETSA           ; specified by the PRG header
                 
                 jsr	putsil
                 .byte	CR,LF
