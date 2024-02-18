@@ -1658,7 +1658,15 @@ doReadFile:	jsr     SETVRCK
                 ldy     #>filename
 
                 jsr     FREAD
-                jmp     extKimLoop
+
+                jsr     GETSTAT         ; Get status into A
+                and     #SPERR          ; Verify error?
+                beq     doReadFile1     ; No, return
+
+                jsr     putsil
+                .byte   CR, LF, "Verify error.", 0
+
+doReadFile1:    jmp     extKimLoop
 
 readCancel:     jsr     putsil
                 .byte   "Cancelled by user.", CR, LF, 0
@@ -1696,6 +1704,7 @@ writeFile1:     lda     SAL
                 ldy	#>filename
 
                 jsr     FWRITE
+
 writeFile2:     jmp     extKimLoop
         .endif
 ;
