@@ -386,7 +386,9 @@ extKim:		ldx	#$ff
                 bit	SAD
                 bne	notty	;branch .if in keyboard mode
 
-        .ifndef IEC_SUPPORT
+        .ifdef   IEC_SUPPORT
+                jsr     SEINIT
+        .else
         .if	~SD_ONLY_COLD
                 jsr	xParInit
         .endif
